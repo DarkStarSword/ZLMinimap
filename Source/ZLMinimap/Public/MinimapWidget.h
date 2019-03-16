@@ -18,5 +18,5 @@ public:
 
 	// Assign the panel area that will be used to display minimap icons via this:
 	UFUNCTION(BlueprintImplementableEvent, Category="Minimap")
-	UPanelWidget *GetMinimapIconArea() const;
+	UCanvasPanel *GetMinimapIconArea() const;
 };

@@ -2,6 +2,7 @@
 
 #include "Minimap.h"
 
+DEFINE_LOG_CATEGORY(LogMinimap);
 
 // Sets default values
 AMinimap::AMinimap()
@@ -17,7 +18,7 @@ void AMinimap::BeginPlay()
 	Super::BeginPlay();
 
 	if (!minimap_widget) {
-		UE_LOG(LogTemp, Warning, TEXT("No minimap widget assigned"));
+		UE_LOG(LogMinimap, Warning, TEXT("No minimap widget assigned"));
 		return;
 	}
 
@@ -26,17 +27,17 @@ void AMinimap::BeginPlay()
 
 	minimap_panel = minimap_widget->GetMinimapIconArea();
 	if (!minimap_panel) {
-		UE_LOG(LogTemp, Warning, TEXT("Minimap widget blueprint GetMinimapIconArea() not hooked up"));
+		UE_LOG(LogMinimap, Warning, TEXT("Minimap widget's icon area panel is not set"));
 		return;
 	}
 
-	
+	UImage *test_icon = NewObject<UImage>();
+	minimap_panel->AddChild(test_icon);
 }
 
 // Called every frame
 void AMinimap::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
