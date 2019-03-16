@@ -15,6 +15,21 @@ AMinimap::AMinimap()
 void AMinimap::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (!minimap_widget) {
+		UE_LOG(LogTemp, Warning, TEXT("No minimap widget assigned"));
+		return;
+	}
+
+	// Minimap widget currently added to the viewport via blueprint to
+	// allow flexibility if it was wanted somewhere other than the viewport
+
+	minimap_panel = minimap_widget->GetMinimapIconArea();
+	if (!minimap_panel) {
+		UE_LOG(LogTemp, Warning, TEXT("Minimap widget blueprint GetMinimapIconArea() not hooked up"));
+		return;
+	}
+
 	
 }
 

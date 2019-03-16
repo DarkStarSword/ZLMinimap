@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "MinimapWidget.h"
 #include "Minimap.generated.h"
-
 UCLASS()
 class ZLMINIMAP_API AMinimap : public AActor
 {
@@ -23,6 +23,10 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	// Set this to the minimap widget:
+	UPROPERTY(EditAnywhere)
+	class UMinimapWidget *minimap_widget;
 	
-	
+	UPROPERTY(EditAnywhere)
+	UPanelWidget *minimap_panel;
 };
