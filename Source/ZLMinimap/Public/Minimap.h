@@ -22,9 +22,11 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	void OnActorSpawned(AActor *actor);
 
 	UCanvasPanel *minimap_panel;
 	TArray<TPair<AActor*, UCanvasPanelSlot*>> tracked_actors;
+	UWorld *world;
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

@@ -16,8 +16,6 @@ AMinimap::AMinimap()
 // Called when the game starts or when spawned
 void AMinimap::BeginPlay()
 {
-	UWorld *world;
-
 	Super::BeginPlay();
 
 	if (!minimap_widget) {
@@ -40,29 +38,34 @@ void AMinimap::BeginPlay()
 		UE_LOG(LogMinimap, Warning, TEXT("No world"));
 		return;
 	}
+	world->AddOnActorSpawnedHandler(FOnActorSpawned::FDelegate::CreateUObject(this, &AMinimap::OnActorSpawned));
 
 	for (TActorIterator<AActor> it(world); it; ++it) {
-		UTexture2D **texture = nullptr;
-
-		// Find an icon for this actor, either attached to the actor's
-		// MinimapIconComponent, or from the minimap class legend:
-		UMinimapIconComponent *actor_icon = it->FindComponentByClass<UMinimapIconComponent>();
-		if (actor_icon)
-			texture = &actor_icon->minimap_icon;
-		else
-			texture = legend.Find(it->GetClass());
-
-		if (!texture || !*texture)
-			continue;
-
-		UImage *icon = NewObject<UImage>();
-		icon->SetBrushFromTexture(*texture);
-		UCanvasPanelSlot *slot = Cast<UCanvasPanelSlot>(minimap_panel->AddChild(icon));
-		slot->SetAlignment(FVector2D(0.5, 0.5));
-		slot->SetSize(FVector2D((*texture)->GetSizeX(), (*texture)->GetSizeY()));
-		tracked_actors.Emplace(*it, slot);
+		OnActorSpawned(*it);
 	}
-	// TODO: world->AddOnActorSpawnedHandler
+}
+
+void AMinimap::OnActorSpawned(AActor *actor)
+{
+	UTexture2D **texture = nullptr;
+
+	// Find an icon for this actor, either attached to the actor's
+	// MinimapIconComponent, or from the minimap class legend:
+	UMinimapIconComponent *actor_icon = actor->FindComponentByClass<UMinimapIconComponent>();
+	if (actor_icon)
+		texture = &actor_icon->minimap_icon;
+	else
+		texture = legend.Find(actor->GetClass());
+
+	if (!texture || !*texture)
+		return;
+
+	UImage *icon = NewObject<UImage>();
+	icon->SetBrushFromTexture(*texture);
+	UCanvasPanelSlot *slot = Cast<UCanvasPanelSlot>(minimap_panel->AddChild(icon));
+	slot->SetAlignment(FVector2D(0.5, 0.5));
+	slot->SetSize(FVector2D((*texture)->GetSizeX(), (*texture)->GetSizeY()));
+	tracked_actors.Emplace(actor, slot);
 }
 
 // Called every frame
@@ -75,7 +78,6 @@ void AMinimap::Tick(float DeltaTime)
 	FRotator camera_rot;
 	FVector camera_pos;
 	float panel_scale;
-	UWorld *world;
 	APawn *pawn;
 
 	Super::Tick(DeltaTime);
