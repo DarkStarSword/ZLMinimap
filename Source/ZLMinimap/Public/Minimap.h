@@ -24,6 +24,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	UCanvasPanel *minimap_panel;
+	TArray<TPair<AActor*, UCanvasPanelSlot*>> tracked_actors;
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

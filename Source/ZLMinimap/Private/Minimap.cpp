@@ -15,6 +15,8 @@ AMinimap::AMinimap()
 // Called when the game starts or when spawned
 void AMinimap::BeginPlay()
 {
+	UWorld *world;
+
 	Super::BeginPlay();
 
 	if (!minimap_widget) {
@@ -30,6 +32,22 @@ void AMinimap::BeginPlay()
 		UE_LOG(LogMinimap, Warning, TEXT("Minimap widget's icon area panel is not set"));
 		return;
 	}
+
+	world = GetWorld();
+	if (!world) {
+		// I don't know if this can happen, but it's a pointer, let's be safe
+		UE_LOG(LogMinimap, Warning, TEXT("No world"));
+		return;
+	}
+
+	for (TActorIterator<AActor> it(world); it; ++it) {
+		UImage *icon = NewObject<UImage>();
+		UCanvasPanelSlot *slot = Cast<UCanvasPanelSlot>(minimap_panel->AddChild(icon));
+		slot->SetAlignment(FVector2D(0.5, 0.5));
+		slot->SetSize(FVector2D(20, 20));
+		tracked_actors.Emplace(*it, slot);
+	}
+	// TODO: world->AddOnActorSpawnedHandler
 }
 
 // Called every frame
@@ -49,11 +67,6 @@ void AMinimap::Tick(float DeltaTime)
 
 	if (!minimap_panel)
 		return;
-
-	// For now I'm adding new icons and iterating all actors each frame.
-	// Once the transformation works I'll optimise this
-	minimap_panel->ClearChildren();
-	// TODO: world->AddOnActorSpawnedHandler
 
 	world = GetWorld();
 	if (!world)
@@ -76,14 +89,20 @@ void AMinimap::Tick(float DeltaTime)
 	player->GetPlayerViewPoint(camera_pos, camera_rot);
 	player_loc = FVector2D(pawn->GetActorLocation());
 
-	for (TActorIterator<AActor> it(world); it; ++it) {
-		UImage *icon = NewObject<UImage>();
-		UCanvasPanelSlot *slot = Cast<UCanvasPanelSlot>(minimap_panel->AddChild(icon));
-		FVector2D icon_loc = FVector2D(it->GetActorLocation()) - player_loc;
+	for (int i = tracked_actors.Num() - 1; i >= 0; --i) {
+		AActor *actor = tracked_actors[i].Key;
+		UCanvasPanelSlot *slot = tracked_actors[i].Value;
+
+		if (!actor || !slot) {
+			// Actor destroyed or someone messed with
+			// our panel while we weren't looking (TESTME)
+			tracked_actors.RemoveAt(i);
+			continue;
+		}
+
+		FVector2D icon_loc = FVector2D(actor->GetActorLocation()) - player_loc;
 		// TODO: Check if possibly in range before applying rotation
 		slot->SetPosition(icon_loc.GetRotated(270 - camera_rot.Yaw) * panel_scale + panel_pivot);
-		slot->SetAlignment(FVector2D(0.5, 0.5));
-		slot->SetSize(FVector2D(20, 20));
 	}
 }
 
