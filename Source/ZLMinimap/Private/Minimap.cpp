@@ -110,9 +110,11 @@ void AMinimap::Tick(float DeltaTime)
 		AActor *actor = tracked_actors[i].Key;
 		UCanvasPanelSlot *slot = tracked_actors[i].Value;
 
-		if (!actor || !slot) {
+		if (!actor || !actor->CheckStillInWorld() || !slot) {
 			// Actor destroyed or someone messed with
-			// our panel while we weren't looking (TESTME)
+			// our panel while we weren't looking
+			if (slot)
+				slot->Content->RemoveFromParent();
 			tracked_actors.RemoveAt(i);
 			continue;
 		}
