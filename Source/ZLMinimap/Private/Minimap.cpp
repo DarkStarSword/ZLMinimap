@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Minimap.h"
+#include "MinimapIconComponent.h"
 
 DEFINE_LOG_CATEGORY(LogMinimap);
 
@@ -41,7 +42,16 @@ void AMinimap::BeginPlay()
 	}
 
 	for (TActorIterator<AActor> it(world); it; ++it) {
-		UTexture2D **texture = legend.Find(it->GetClass());
+		UTexture2D **texture = nullptr;
+
+		// Find an icon for this actor, either attached to the actor's
+		// MinimapIconComponent, or from the minimap class legend:
+		UMinimapIconComponent *actor_icon = it->FindComponentByClass<UMinimapIconComponent>();
+		if (actor_icon)
+			texture = &actor_icon->minimap_icon;
+		else
+			texture = legend.Find(it->GetClass());
+
 		if (!texture || !*texture)
 			continue;
 
