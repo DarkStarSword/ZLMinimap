@@ -32,6 +32,9 @@ public:
 	// Set this to the minimap widget instance, and make sure that it
 	// implements GetMinimapIconArea() to return the panel which will
 	// contain the minimap icons
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Minimap")
+	UPROPERTY(BlueprintReadWrite, Category = "Minimap")
 	class UMinimapWidget *minimap_widget;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
+	TMap<UClass*, UTexture2D*> legend;
 };

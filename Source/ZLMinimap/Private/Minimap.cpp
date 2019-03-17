@@ -41,10 +41,15 @@ void AMinimap::BeginPlay()
 	}
 
 	for (TActorIterator<AActor> it(world); it; ++it) {
+		UTexture2D **texture = legend.Find(it->GetClass());
+		if (!texture || !*texture)
+			continue;
+
 		UImage *icon = NewObject<UImage>();
+		icon->SetBrushFromTexture(*texture);
 		UCanvasPanelSlot *slot = Cast<UCanvasPanelSlot>(minimap_panel->AddChild(icon));
 		slot->SetAlignment(FVector2D(0.5, 0.5));
-		slot->SetSize(FVector2D(20, 20));
+		slot->SetSize(FVector2D((*texture)->GetSizeX(), (*texture)->GetSizeY()));
 		tracked_actors.Emplace(*it, slot);
 	}
 	// TODO: world->AddOnActorSpawnedHandler
