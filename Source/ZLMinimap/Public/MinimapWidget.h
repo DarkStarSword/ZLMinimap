@@ -19,4 +19,8 @@ public:
 	// Assign the panel area that will be used to display minimap icons via this:
 	UFUNCTION(BlueprintImplementableEvent, Category="Minimap")
 	UCanvasPanel *GetMinimapIconArea() const;
+
+	// Assign the background image widget to be updated by the minimap via this:
+	UFUNCTION(BlueprintImplementableEvent, Category = "Minimap")
+	UImage *GetMinimapBackgroundImage() const;
 };

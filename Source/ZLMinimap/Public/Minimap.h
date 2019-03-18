@@ -25,8 +25,10 @@ protected:
 	void OnActorSpawned(AActor *actor);
 
 	UCanvasPanel *minimap_panel;
+	UImage *minimap_background;
 	TArray<TPair<AActor*, UCanvasPanelSlot*>> tracked_actors;
 	UWorld *world;
+	FVector camera_offset;
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -39,4 +41,19 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
 	TMap<UClass*, UTexture2D*> legend;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
+	USceneCaptureComponent2D *background_capture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
+	UTextureRenderTarget2D *background_rt;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
+	float minimap_scale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
+	float camera_height;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
+	FVector2D minimap_center;
 };
