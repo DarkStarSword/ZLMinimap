@@ -27,4 +27,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
 	UTexture2D *minimap_icon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
+	bool show_on_background;
 };

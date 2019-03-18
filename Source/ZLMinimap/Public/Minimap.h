@@ -62,6 +62,9 @@ public:
 	UTextureRenderTarget2D *background_rt;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
+	bool add_all_static_actors_to_background;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
 	float minimap_scale;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")

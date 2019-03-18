@@ -19,6 +19,7 @@ AMinimap::AMinimap()
 	minimap_scale = 2048.0f;
 	// Track player rotation by default:
 	lock_yaw_to_camera = true;
+	add_all_static_actors_to_background = true;
 
 	background_capture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("MinimapBackgroundCapture"));
 	background_capture->SetupAttachment(RootComponent);
@@ -100,16 +101,18 @@ void AMinimap::OnActorSpawned(AActor *actor)
 	// Find an icon for this actor, either attached to the actor's
 	// MinimapIconComponent, or from the minimap class legend:
 	UMinimapIconComponent *actor_icon = actor->FindComponentByClass<UMinimapIconComponent>();
-	if (actor_icon)
+	if (actor_icon) {
 		texture = &actor_icon->minimap_icon;
-	else
+		if (background_capture && actor_icon->show_on_background)
+			background_capture->ShowOnlyActors.Add(actor);
+	} else {
 		texture = legend.Find(actor->GetClass());
+		if (add_all_static_actors_to_background && background_capture && actor->IsRootComponentStatic())
+			background_capture->ShowOnlyActors.Add(actor);
+	}
 
 	if (texture && *texture)
 		TrackActor(actor, *texture);
-
-	if (background_capture && actor->IsRootComponentStatic())
-		background_capture->ShowOnlyActors.Add(actor);
 }
 
 // Called to update cached properties so we don't have to do this every frame:
