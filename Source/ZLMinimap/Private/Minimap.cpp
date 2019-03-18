@@ -76,14 +76,19 @@ void AMinimap::BeginPlay()
 	}
 }
 
-void AMinimap::track_actor(AActor *actor, UTexture2D *texture)
+void AMinimap::TrackActor(AActor *actor, UTexture2D *texture)
 {
+	int32 width = texture->GetSizeX();
+	int32 height = texture->GetSizeY();
+
 	UImage *icon = NewObject<UImage>();
 	icon->SetBrushFromTexture(texture);
 	UCanvasPanelSlot *slot = Cast<UCanvasPanelSlot>(minimap_panel->AddChild(icon));
 	slot->SetAlignment(FVector2D(0.5, 0.5));
-	slot->SetSize(FVector2D(texture->GetSizeX(), texture->GetSizeY()));
+	slot->SetSize(FVector2D(width, height));
 	tracked_actors.Emplace(actor, slot);
+
+	max_icon_size = FMath::Max<uint32>(max_icon_size, FMath::Max<uint32>(width, height));
 }
 
 void AMinimap::OnActorSpawned(AActor *actor)
@@ -99,32 +104,53 @@ void AMinimap::OnActorSpawned(AActor *actor)
 		texture = legend.Find(actor->GetClass());
 
 	if (texture && *texture)
-		track_actor(actor, *texture);
+		TrackActor(actor, *texture);
 
 	if (background_capture && actor->IsRootComponentStatic())
 		background_capture->ShowOnlyActors.Add(actor);
+}
+
+// Called to update cached properties so we don't have to do this every frame:
+void AMinimap::UpdateCachedProperties()
+{
+	cached_panel_size = minimap_panel->GetCachedGeometry().GetLocalSize();
+	cached_panel_pivot = cached_panel_size * minimap_center;
+	cached_panel_scale = cached_panel_size.X / minimap_scale;
+
+	// Determine the maximum distance an actor can be from
+	// the player to consider drawing their minimap icons,
+	// allowing us to skip rotation calculations for any
+	// actors clearly too far out of range. We're only
+	// going to compare whichever corner of the minimap is
+	// furthest from the center to reduce the number of
+	// checks that we perform:
+	float icon_padding = max_icon_size / cached_panel_size.X / 2.0f;
+	float from_left_or_right = FVector2D(minimap_center.X, 1.0 - minimap_center.X).GetAbsMax() + icon_padding;
+	float from_top_or_bottom = FVector2D(minimap_center.Y, 1.0 - minimap_center.Y).GetAbsMax() + icon_padding;
+	float from_furthest_corner = FVector2D::Distance(FVector2D(from_left_or_right, from_top_or_bottom), FVector2D(0,0));
+	max_distance_from_player = from_furthest_corner * minimap_scale;
+
+	// Synchronise the capture component's zoom with ours:
+	if (background_capture)
+		background_capture->OrthoWidth = minimap_scale;
 }
 
 // Called every frame
 void AMinimap::Tick(float DeltaTime)
 {
 	APlayerController *player;
-	FVector2D panel_pivot;
-	FVector2D panel_size;
 	FRotator camera_rot;
 	FVector camera_pos;
 	FVector player_loc;
-	float panel_scale = 1.0f;
 	APawn *pawn;
 
 	Super::Tick(DeltaTime);
 
-	if (!minimap_panel)
+	if (!minimap_panel || !world)
 		return;
 
-	world = GetWorld();
-	if (!world)
-		return;
+	if (cached_panel_size != minimap_panel->GetCachedGeometry().GetLocalSize())
+		UpdateCachedProperties();
 
 	// TODO: Allow the minimap to be centered on an arbitrary actor
 	player = world->GetFirstPlayerController();
@@ -134,10 +160,6 @@ void AMinimap::Tick(float DeltaTime)
 	pawn = player->GetPawn();
 	if (!pawn)
 		return;
-
-	panel_size = minimap_panel->GetCachedGeometry().GetLocalSize();
-	panel_pivot = panel_size * minimap_center;
-	panel_scale = panel_size.X / minimap_scale;
 
 	player->GetPlayerViewPoint(camera_pos, camera_rot);
 	player_loc = pawn->GetActorLocation();
@@ -150,10 +172,6 @@ void AMinimap::Tick(float DeltaTime)
 	// Look down for a top-down view, and match the player camera rotation
 	// yaw to keep up/north pointing in the same direction as the player:
 	SetActorLocationAndRotation(capture_loc, FRotator(-90.0f, camera_rot.Yaw, 0));
-
-	// Synchronise the capture component's zoom with ours:
-	if (background_capture)
-		background_capture->OrthoWidth = minimap_scale;
 
 	for (int i = tracked_actors.Num() - 1; i >= 0; --i) {
 		AActor *actor = tracked_actors[i].Key;
@@ -169,8 +187,18 @@ void AMinimap::Tick(float DeltaTime)
 		}
 
 		FVector2D icon_loc = FVector2D(actor->GetActorLocation()) - FVector2D(player_loc);
-		// TODO: Check if possibly in range before applying rotation
-		slot->SetPosition(icon_loc.GetRotated(270 - camera_rot.Yaw) * panel_scale + panel_pivot);
+		// Cull objects clearly out of range to skip the rotation calculation:
+		// if (FVector2D::Distance(icon_loc, FVector2D(0, 0)) < max_distance_from_player) {
+		// except we don't want to do a distance calculation either, so we just compare
+		// the max X or Y from the player, which is more than enough to make sure everything
+		// that should be on the minimap shows regardless of rotation, while culling things
+		// that are way too far off, and relying on the panel to clip anything in between:
+		if (icon_loc.GetAbsMax() < max_distance_from_player) {
+			slot->SetPosition(icon_loc.GetRotated(270 - camera_rot.Yaw) * cached_panel_scale + cached_panel_pivot);
+			slot->Content->SetVisibility(ESlateVisibility::Visible);
+		} else {
+			slot->Content->SetVisibility(ESlateVisibility::Hidden);
+		}
 	}
 }
 

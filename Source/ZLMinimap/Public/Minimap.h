@@ -29,11 +29,20 @@ protected:
 	TArray<TPair<AActor*, UCanvasPanelSlot*>> tracked_actors;
 	UWorld *world;
 	FVector camera_offset;
+	FVector2D cached_panel_size;
+	FVector2D cached_panel_pivot;
+	float cached_panel_scale;
+	int32 max_icon_size;
+	float max_distance_from_player;
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	void track_actor(AActor *actor, UTexture2D *icon);
+	// Call this if any properties are updated at runtime
+	UFUNCTION(BlueprintCallable, Category = "Minimap")
+	void UpdateCachedProperties();
+
+	void TrackActor(AActor *actor, UTexture2D *icon);
 
 	// Set this to the minimap widget instance, and make sure that it
 	// implements GetMinimapIconArea() to return the panel which will
