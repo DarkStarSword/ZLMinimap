@@ -23,6 +23,7 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	void OnActorSpawned(AActor *actor);
+	void UpdatePosition();
 
 	UCanvasPanel *minimap_panel;
 	UImage *minimap_background;
@@ -34,6 +35,7 @@ protected:
 	float cached_panel_scale;
 	int32 max_icon_size;
 	float max_distance_from_player;
+	FVector cached_target_location;
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -67,4 +69,13 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
 	FVector2D minimap_center;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
+	AActor *follow_actor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
+	bool lock_yaw_to_camera;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Minimap")
+	float minimap_yaw;
 };

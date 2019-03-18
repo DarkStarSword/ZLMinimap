@@ -17,6 +17,8 @@ AMinimap::AMinimap()
 	camera_height = 1000.0f;
 	// Default horizontal diameter of the world the minimap covers:
 	minimap_scale = 2048.0f;
+	// Track player rotation by default:
+	lock_yaw_to_camera = true;
 
 	background_capture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("MinimapBackgroundCapture"));
 	background_capture->SetupAttachment(RootComponent);
@@ -113,6 +115,16 @@ void AMinimap::OnActorSpawned(AActor *actor)
 // Called to update cached properties so we don't have to do this every frame:
 void AMinimap::UpdateCachedProperties()
 {
+	APlayerController *player;
+
+	// If we aren't following a specific actor, follow the player:
+	if (!follow_actor) {
+		player = world->GetFirstPlayerController();
+		if (player)
+			follow_actor = player->GetPawn();
+	}
+
+	// Update intermediate values that depend on the UI size:
 	cached_panel_size = minimap_panel->GetCachedGeometry().GetLocalSize();
 	cached_panel_pivot = cached_panel_size * minimap_center;
 	cached_panel_scale = cached_panel_size.X / minimap_scale;
@@ -130,20 +142,43 @@ void AMinimap::UpdateCachedProperties()
 	float from_furthest_corner = FVector2D::Distance(FVector2D(from_left_or_right, from_top_or_bottom), FVector2D(0,0));
 	max_distance_from_player = from_furthest_corner * minimap_scale;
 
-	// Synchronise the capture component's zoom with ours:
-	if (background_capture)
+	// Synchronise the capture component's zoom with ours and make
+	// sure that it captures the background at the new scale:
+	if (background_capture) {
 		background_capture->OrthoWidth = minimap_scale;
+		background_capture->CaptureScene();
+	}
+}
+
+void AMinimap::UpdatePosition()
+{
+	FRotator camera_rot;
+	FVector camera_pos;
+
+	if (!follow_actor)
+		return;
+
+	cached_target_location = follow_actor->GetActorLocation();
+
+	if (lock_yaw_to_camera) {
+		follow_actor->GetActorEyesViewPoint(camera_pos, camera_rot);
+		minimap_yaw = camera_rot.Yaw;
+	}
+
+	// We track the actor, so the capture component's position will too.
+	// Add an offset for the minimap pivot back into world space, so that
+	// the capture component will be lined up with the center of the
+	// minimap, even when the player is offset from that:
+	FVector capture_loc = cached_target_location;
+	capture_loc += FVector((minimap_center - FVector2D(0.5, 0.5)).GetRotated(minimap_yaw - 90) * minimap_scale, camera_height);
+	// Look down for a top-down view, and match the player camera rotation
+	// yaw to keep up/north pointing in the same direction as the player:
+	SetActorLocationAndRotation(capture_loc, FRotator(-90.0f, minimap_yaw, 0));
 }
 
 // Called every frame
 void AMinimap::Tick(float DeltaTime)
 {
-	APlayerController *player;
-	FRotator camera_rot;
-	FVector camera_pos;
-	FVector player_loc;
-	APawn *pawn;
-
 	Super::Tick(DeltaTime);
 
 	if (!minimap_panel || !world)
@@ -152,26 +187,7 @@ void AMinimap::Tick(float DeltaTime)
 	if (cached_panel_size != minimap_panel->GetCachedGeometry().GetLocalSize())
 		UpdateCachedProperties();
 
-	// TODO: Allow the minimap to be centered on an arbitrary actor
-	player = world->GetFirstPlayerController();
-	if (!player)
-		return;
-
-	pawn = player->GetPawn();
-	if (!pawn)
-		return;
-
-	player->GetPlayerViewPoint(camera_pos, camera_rot);
-	player_loc = pawn->GetActorLocation();
-
-	// We track the actor, so the capture component's position will too.
-	// Add an offset for the minimap pivot back into world space, so that
-	// the capture component will be lined up with the center of the
-	// minimap, even when the player is offset from that:
-	FVector capture_loc = player_loc + FVector((minimap_center - FVector2D(0.5, 0.5)).GetRotated(camera_rot.Yaw - 90) * minimap_scale, camera_height);
-	// Look down for a top-down view, and match the player camera rotation
-	// yaw to keep up/north pointing in the same direction as the player:
-	SetActorLocationAndRotation(capture_loc, FRotator(-90.0f, camera_rot.Yaw, 0));
+	UpdatePosition();
 
 	for (int i = tracked_actors.Num() - 1; i >= 0; --i) {
 		AActor *actor = tracked_actors[i].Key;
@@ -186,7 +202,7 @@ void AMinimap::Tick(float DeltaTime)
 			continue;
 		}
 
-		FVector2D icon_loc = FVector2D(actor->GetActorLocation()) - FVector2D(player_loc);
+		FVector2D icon_loc = FVector2D(actor->GetActorLocation()) - FVector2D(cached_target_location);
 		// Cull objects clearly out of range to skip the rotation calculation:
 		// if (FVector2D::Distance(icon_loc, FVector2D(0, 0)) < max_distance_from_player) {
 		// except we don't want to do a distance calculation either, so we just compare
@@ -194,7 +210,7 @@ void AMinimap::Tick(float DeltaTime)
 		// that should be on the minimap shows regardless of rotation, while culling things
 		// that are way too far off, and relying on the panel to clip anything in between:
 		if (icon_loc.GetAbsMax() < max_distance_from_player) {
-			slot->SetPosition(icon_loc.GetRotated(270 - camera_rot.Yaw) * cached_panel_scale + cached_panel_pivot);
+			slot->SetPosition(icon_loc.GetRotated(270 - minimap_yaw) * cached_panel_scale + cached_panel_pivot);
 			slot->Content->SetVisibility(ESlateVisibility::Visible);
 		} else {
 			slot->Content->SetVisibility(ESlateVisibility::Hidden);
