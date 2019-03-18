@@ -24,9 +24,8 @@ AMinimap::AMinimap()
 	background_capture->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 	background_capture->ProjectionType = ECameraProjectionMode::Orthographic;
 	background_capture->OrthoWidth = minimap_scale;
-	//TODO: background_capture->bCaptureEveryFrame = false;
-	//TODO: background_capture->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-
+	background_capture->bCaptureEveryFrame = false;
+	background_capture->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
 }
 
 // Called when the game starts or when spawned
@@ -77,6 +76,16 @@ void AMinimap::BeginPlay()
 	}
 }
 
+void AMinimap::track_actor(AActor *actor, UTexture2D *texture)
+{
+	UImage *icon = NewObject<UImage>();
+	icon->SetBrushFromTexture(texture);
+	UCanvasPanelSlot *slot = Cast<UCanvasPanelSlot>(minimap_panel->AddChild(icon));
+	slot->SetAlignment(FVector2D(0.5, 0.5));
+	slot->SetSize(FVector2D(texture->GetSizeX(), texture->GetSizeY()));
+	tracked_actors.Emplace(actor, slot);
+}
+
 void AMinimap::OnActorSpawned(AActor *actor)
 {
 	UTexture2D **texture = nullptr;
@@ -89,15 +98,11 @@ void AMinimap::OnActorSpawned(AActor *actor)
 	else
 		texture = legend.Find(actor->GetClass());
 
-	if (!texture || !*texture)
-		return;
+	if (texture && *texture)
+		track_actor(actor, *texture);
 
-	UImage *icon = NewObject<UImage>();
-	icon->SetBrushFromTexture(*texture);
-	UCanvasPanelSlot *slot = Cast<UCanvasPanelSlot>(minimap_panel->AddChild(icon));
-	slot->SetAlignment(FVector2D(0.5, 0.5));
-	slot->SetSize(FVector2D((*texture)->GetSizeX(), (*texture)->GetSizeY()));
-	tracked_actors.Emplace(actor, slot);
+	if (background_capture && actor->IsRootComponentStatic())
+		background_capture->ShowOnlyActors.Add(actor);
 }
 
 // Called every frame

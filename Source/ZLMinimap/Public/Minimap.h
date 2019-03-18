@@ -33,6 +33,8 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	void track_actor(AActor *actor, UTexture2D *icon);
+
 	// Set this to the minimap widget instance, and make sure that it
 	// implements GetMinimapIconArea() to return the panel which will
 	// contain the minimap icons
