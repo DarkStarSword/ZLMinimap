@@ -57,7 +57,7 @@ void AMinimap::BeginPlay()
 		return;
 	}
 
-	// minimap_background = minimap_widget->GetMinimapBackgroundImage();
+	minimap_background = minimap_widget->GetMinimapBackgroundImage();
 	if (background_capture && background_rt /* && minimap_background */) {
 		background_capture->TextureTarget = background_rt;
 		//TODO: Set the minimap_background brush to the render target
@@ -129,6 +129,9 @@ void AMinimap::UpdateCachedProperties()
 
 	// Update intermediate values that depend on the UI size:
 	cached_panel_size = minimap_panel->GetCachedGeometry().GetLocalSize();
+	if (!cached_panel_size.X || !cached_panel_size.Y)
+		return;
+
 	cached_panel_pivot = cached_panel_size * minimap_center;
 	cached_panel_scale = cached_panel_size.X / minimap_scale;
 
@@ -139,18 +142,31 @@ void AMinimap::UpdateCachedProperties()
 	// going to compare whichever corner of the minimap is
 	// furthest from the center to reduce the number of
 	// checks that we perform:
-	float icon_padding = max_icon_size / cached_panel_size.X / 2.0f;
-	float from_left_or_right = FVector2D(minimap_center.X, 1.0 - minimap_center.X).GetAbsMax() + icon_padding;
-	float from_top_or_bottom = FVector2D(minimap_center.Y, 1.0 - minimap_center.Y).GetAbsMax() + icon_padding;
+	FVector2D icon_padding = FVector2D(max_icon_size / 2.0f, max_icon_size / 2.0f) / cached_panel_size;
+	float ratio = cached_panel_size.Y / cached_panel_size.X;
+	float from_left_or_right = FVector2D(minimap_center.X, 1.0 - minimap_center.X).GetAbsMax() + icon_padding.X;
+	float from_top_or_bottom = FVector2D(minimap_center.Y, 1.0 - minimap_center.Y).GetAbsMax() * ratio + icon_padding.Y;
 	float from_furthest_corner = FVector2D::Distance(FVector2D(from_left_or_right, from_top_or_bottom), FVector2D(0,0));
 	max_distance_from_player = from_furthest_corner * minimap_scale;
 
-	// Synchronise the capture component's zoom with ours and make
-	// sure that it captures the background at the new scale:
-	if (background_capture) {
-		background_capture->OrthoWidth = minimap_scale;
-		background_capture->CaptureScene();
+	// Compensate for stretching of the background if the minimap
+	// is non-square via the UImage's render transform and adjusting the :
+	cached_capture_offset = (minimap_center - FVector2D(0.5, 0.5)) * FVector2D(1.0f, ratio) * minimap_scale;
+	if (cached_panel_size.Y > cached_panel_size.X) {
+		if (minimap_background)
+			minimap_background->SetRenderScale(FVector2D(ratio, 1.0f));
+		if (background_capture)
+			background_capture->OrthoWidth = minimap_scale * ratio;
+	} else { // Square, or wider than it is tall
+		if (minimap_background)
+			minimap_background->SetRenderScale(FVector2D(1.0f, cached_panel_size.X / cached_panel_size.Y));
+		if (background_capture)
+			background_capture->OrthoWidth = minimap_scale;
 	}
+
+	// Make sure the capture component updates with the new zoom:
+	if (background_capture)
+		background_capture->CaptureScene();
 }
 
 void AMinimap::UpdatePosition()
@@ -173,7 +189,7 @@ void AMinimap::UpdatePosition()
 	// the capture component will be lined up with the center of the
 	// minimap, even when the player is offset from that:
 	FVector capture_loc = cached_target_location;
-	capture_loc += FVector((minimap_center - FVector2D(0.5, 0.5)).GetRotated(minimap_yaw - 90) * minimap_scale, camera_height);
+	capture_loc += FVector(cached_capture_offset.GetRotated(minimap_yaw - 90), camera_height);
 	// Look down for a top-down view, and match the player camera rotation
 	// yaw to keep up/north pointing in the same direction as the player:
 	SetActorLocationAndRotation(capture_loc, FRotator(-90.0f, minimap_yaw, 0));

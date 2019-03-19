@@ -32,6 +32,7 @@ protected:
 	FVector camera_offset;
 	FVector2D cached_panel_size;
 	FVector2D cached_panel_pivot;
+	FVector2D cached_capture_offset;
 	float cached_panel_scale;
 	int32 max_icon_size;
 	float max_distance_from_player;
